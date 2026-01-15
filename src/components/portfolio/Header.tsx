@@ -35,20 +35,20 @@ export function Header() {
 
   return (
     <motion.header
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'glass-card shadow-lg' : 'bg-transparent'
-      }`}
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl"
     >
-      <div className="container mx-auto px-6">
-        <nav className="flex items-center justify-between h-16 md:h-20">
+      <nav className={`floating-nav px-4 md:px-6 transition-all duration-300 ${
+        isScrolled ? 'shadow-lg py-2' : 'py-3'
+      }`}>
+        <div className="flex items-center justify-between">
           {/* Logo */}
           <motion.a
             href="#home"
             onClick={(e) => { e.preventDefault(); scrollToSection('#home'); }}
-            className="font-display text-xl md:text-2xl font-bold"
+            className="font-display text-lg md:text-xl font-bold"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -57,12 +57,12 @@ export function Header() {
           </motion.a>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
               <motion.button
                 key={item.label}
                 onClick={() => scrollToSection(item.href)}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
                 whileHover={{ y: -2 }}
                 whileTap={{ y: 0 }}
               >
@@ -72,12 +72,12 @@ export function Header() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="rounded-full"
+              className="rounded-full h-9 w-9"
               aria-label="Toggle theme"
             >
               <AnimatePresence mode="wait">
@@ -89,7 +89,7 @@ export function Header() {
                     exit={{ rotate: 90, opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Moon className="h-5 w-5" />
+                    <Moon className="h-4 w-4" />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -99,32 +99,32 @@ export function Header() {
                     exit={{ rotate: -90, opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Sun className="h-5 w-5" />
+                    <Sun className="h-4 w-4" />
                   </motion.div>
                 )}
               </AnimatePresence>
             </Button>
 
             <Button
-              className="hidden md:flex items-center gap-2 glow-effect"
+              className="hidden md:flex items-center gap-2 shimmer-button rounded-full px-5"
               onClick={() => window.open(portfolioData.personal.resumeUrl, '_blank')}
             >
               <Download className="h-4 w-4" />
-              Download Resume
+              Resume
             </Button>
 
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="md:hidden h-9 w-9"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle menu"
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
-        </nav>
+        </div>
 
         {/* Mobile Menu */}
         <AnimatePresence>
@@ -135,7 +135,7 @@ export function Header() {
               exit={{ opacity: 0, height: 0 }}
               className="md:hidden overflow-hidden"
             >
-              <div className="py-4 space-y-2">
+              <div className="pt-4 pb-2 space-y-1">
                 {navItems.map((item, index) => (
                   <motion.button
                     key={item.label}
@@ -143,7 +143,7 @@ export function Header() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                     onClick={() => scrollToSection(item.href)}
-                    className="block w-full text-left py-3 px-4 rounded-lg hover:bg-muted transition-colors font-medium"
+                    className="block w-full text-left py-2 px-3 rounded-lg hover:bg-muted transition-colors font-medium text-sm"
                   >
                     {item.label}
                   </motion.button>
@@ -152,9 +152,10 @@ export function Header() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: navItems.length * 0.1 }}
+                  className="pt-2"
                 >
                   <Button
-                    className="w-full mt-2 glow-effect"
+                    className="w-full shimmer-button"
                     onClick={() => window.open(portfolioData.personal.resumeUrl, '_blank')}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -165,7 +166,7 @@ export function Header() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </nav>
     </motion.header>
   );
 }
