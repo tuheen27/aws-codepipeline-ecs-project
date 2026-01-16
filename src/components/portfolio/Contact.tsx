@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Send, Mail, MapPin, Phone, CheckCircle } from 'lucide-react';
+import { Send, Mail, MapPin, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { portfolioData } from '@/lib/portfolioData';
 import { toast } from 'sonner';
 
@@ -14,7 +13,6 @@ export function Contact() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    message: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +26,7 @@ export function Contact() {
       description: "I'll get back to you as soon as possible.",
     });
     
-    setFormData({ name: '', email: '', message: '' });
+    setFormData({ name: '', email: '' });
     setIsSubmitting(false);
   };
 
@@ -104,8 +102,8 @@ export function Contact() {
 
             {/* Contact Form */}
             <motion.div variants={itemVariants}>
-              <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-8 space-y-6">
-                <div className="space-y-4">
+              <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-8 flex flex-col justify-center h-full">
+                <div className="space-y-6">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium mb-2">
                       Name
@@ -116,7 +114,7 @@ export function Contact() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="bg-background/50"
+                      className="bg-background/50 h-12"
                     />
                   </div>
                   
@@ -131,29 +129,14 @@ export function Contact() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
-                      className="bg-background/50"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-medium mb-2">
-                      Message
-                    </label>
-                    <Textarea
-                      id="message"
-                      placeholder="Tell me about your project..."
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      required
-                      rows={5}
-                      className="bg-background/50 resize-none"
+                      className="bg-background/50 h-12"
                     />
                   </div>
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full glow-effect"
+                  className="w-full glow-effect mt-8 h-12"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
