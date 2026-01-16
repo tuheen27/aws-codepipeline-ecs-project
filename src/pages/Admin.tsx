@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Eye, EyeOff, Save, ArrowLeft, Plus, Trash2, User, FolderOpen, Settings } from 'lucide-react';
+import { Lock, Eye, EyeOff, Save, ArrowLeft, Plus, Trash2, User, FolderOpen, Settings, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { portfolioData, PortfolioData, Project } from '@/lib/portfolioData';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { authApi, projectsApi, personalApi, setAuthToken } from '@/lib/api';
 
 type TabType = 'personal' | 'projects';
 
@@ -17,23 +18,73 @@ export default function Admin() {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('projects');
   const [data, setData] = useState<PortfolioData>(portfolioData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'admin123') {
+  useEffect(() => {
+    // Check if user is already authenticated
+    const token = localStorage.getItem('authToken');
+    if (token) {
       setIsAuthenticated(true);
-      toast.success('Logged in successfully');
-    } else {
-      toast.error('Invalid password');
+      setAuthToken(token);
+      loadData();
+    }
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const projects = await projectsApi.getAll();
+      setData({ ...data, projects: projects || data.projects });
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load portfolio data from server');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSave = () => {
-    // In production, this would POST to an API
-    console.log('Saving data:', data);
-    toast.success('Changes saved!', {
-      description: 'Data would be persisted to projects.json or API',
-    });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsLoading(true);
+      await authApi.login(password);
+      setIsAuthenticated(true);
+      toast.success('Logged in successfully');
+      loadData();
+    } catch (error) {
+      toast.error('Invalid password');
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      
+      // Save projects
+      for (const project of data.projects) {
+        try {
+          await projectsApi.update(project.id, project);
+        } catch {
+          // Try creating if update fails
+          await projectsApi.create(project);
+        }
+      }
+
+      toast.success('Changes saved successfully!', {
+        description: 'Your portfolio has been updated in the database.',
+      });
+    } catch (error) {
+      toast.error('Failed to save changes', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addProject = () => {
@@ -49,8 +100,15 @@ export default function Admin() {
     setData({ ...data, projects: [...data.projects, newProject] });
   };
 
-  const removeProject = (id: string) => {
-    setData({ ...data, projects: data.projects.filter((p) => p.id !== id) });
+  const removeProject = async (id: string) => {
+    try {
+      await projectsApi.delete(id);
+      setData({ ...data, projects: data.projects.filter((p) => p.id !== id) });
+      toast.success('Project deleted');
+    } catch (error) {
+      toast.error('Failed to delete project');
+      console.error('Delete error:', error);
+    }
   };
 
   const updateProject = (id: string, field: keyof Project, value: string | string[]) => {
@@ -93,6 +151,7 @@ export default function Admin() {
                     placeholder="Enter password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
                     className="pr-10"
                   />
                   <button
@@ -103,8 +162,15 @@ export default function Admin() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <Button type="submit" className="w-full">
-                  Login
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    'Login'
+                  )}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
                   Demo password: admin123
@@ -138,9 +204,18 @@ export default function Admin() {
               Admin Panel
             </h1>
           </div>
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" />
-            Save Changes
+          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save Changes
+              </>
+            )}
           </Button>
         </div>
       </header>
@@ -167,161 +242,202 @@ export default function Admin() {
 
           {/* Content */}
           <div className="flex-1">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
-            >
-              {activeTab === 'personal' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                {activeTab === 'personal' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Personal Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Name</label>
+                          <Input
+                            value={data.personal.name}
+                            onChange={(e) =>
+                              setData({ ...data, personal: { ...data.personal, name: e.target.value } })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Title</label>
+                          <Input
+                            value={data.personal.title}
+                            onChange={(e) =>
+                              setData({ ...data, personal: { ...data.personal, title: e.target.value } })
+                            }
+                          />
+                        </div>
+                      </div>
                       <div>
-                        <label className="block text-sm font-medium mb-1">Name</label>
+                        <label className="block text-sm font-medium mb-1">Tagline</label>
                         <Input
-                          value={data.personal.name}
+                          value={data.personal.tagline}
                           onChange={(e) =>
-                            setData({ ...data, personal: { ...data.personal, name: e.target.value } })
+                            setData({ ...data, personal: { ...data.personal, tagline: e.target.value } })
                           }
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-1">Title</label>
-                        <Input
-                          value={data.personal.title}
+                        <label className="block text-sm font-medium mb-1">Bio</label>
+                        <Textarea
+                          value={data.personal.bio}
                           onChange={(e) =>
-                            setData({ ...data, personal: { ...data.personal, title: e.target.value } })
+                            setData({ ...data, personal: { ...data.personal, bio: e.target.value } })
                           }
+                          rows={4}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Tagline</label>
-                      <Input
-                        value={data.personal.tagline}
-                        onChange={(e) =>
-                          setData({ ...data, personal: { ...data.personal, tagline: e.target.value } })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Bio</label>
-                      <Textarea
-                        value={data.personal.bio}
-                        onChange={(e) =>
-                          setData({ ...data, personal: { ...data.personal, bio: e.target.value } })
-                        }
-                        rows={4}
-                      />
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Email</label>
-                        <Input
-                          value={data.personal.email}
-                          onChange={(e) =>
-                            setData({ ...data, personal: { ...data.personal, email: e.target.value } })
-                          }
-                        />
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Email</label>
+                          <Input
+                            value={data.personal.email}
+                            onChange={(e) =>
+                              setData({ ...data, personal: { ...data.personal, email: e.target.value } })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Location</label>
+                          <Input
+                            value={data.personal.location}
+                            onChange={(e) =>
+                              setData({ ...data, personal: { ...data.personal, location: e.target.value } })
+                            }
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Location</label>
-                        <Input
-                          value={data.personal.location}
-                          onChange={(e) =>
-                            setData({ ...data, personal: { ...data.personal, location: e.target.value } })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                    </CardContent>
+                  </Card>
+                )}
 
-              {activeTab === 'projects' && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-display text-xl font-bold">Manage Projects</h2>
-                    <Button onClick={addProject} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Add Project
-                    </Button>
-                  </div>
+                {activeTab === 'projects' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-display text-xl font-bold">Manage Projects</h2>
+                      <Button onClick={addProject} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add Project
+                      </Button>
+                    </div>
 
-                  <div className="space-y-4">
-                    {data.projects.map((project, index) => (
-                      <Card key={project.id}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center font-display font-bold text-primary">
-                              {String(index + 1).padStart(2, '0')}
-                            </div>
-                            <div className="flex-1 space-y-4">
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium mb-1">Title</label>
-                                  <Input
-                                    value={project.title}
-                                    onChange={(e) => updateProject(project.id, 'title', e.target.value)}
-                                  />
+                    <div className="space-y-4">
+                      {data.projects.map((project, index) => (
+                        <Card key={project.id}>
+                          <CardContent className="pt-6">
+                            <div className="flex items-start gap-4">
+                              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center font-display font-bold text-primary">
+                                {String(index + 1).padStart(2, '0')}
+                              </div>
+                              <div className="flex-1 space-y-4">
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Title</label>
+                                    <Input
+                                      value={project.title}
+                                      onChange={(e) =>
+                                        setData({
+                                          ...data,
+                                          projects: data.projects.map(p =>
+                                            p.id === project.id ? { ...p, title: e.target.value } : p
+                                          )
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                                    <Input
+                                      value={project.tags.join(', ')}
+                                      onChange={(e) =>
+                                        setData({
+                                          ...data,
+                                          projects: data.projects.map(p =>
+                                            p.id === project.id 
+                                              ? { ...p, tags: e.target.value.split(',').map(t => t.trim()) } 
+                                              : p
+                                          )
+                                        })
+                                      }
+                                    />
+                                  </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
-                                  <Input
-                                    value={project.tags.join(', ')}
+                                  <label className="block text-sm font-medium mb-1">Description</label>
+                                  <Textarea
+                                    value={project.description}
                                     onChange={(e) =>
-                                      updateProject(project.id, 'tags', e.target.value.split(',').map((t) => t.trim()))
+                                      setData({
+                                        ...data,
+                                        projects: data.projects.map(p =>
+                                          p.id === project.id ? { ...p, description: e.target.value } : p
+                                        )
+                                      })
                                     }
+                                    rows={2}
                                   />
                                 </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium mb-1">Description</label>
-                                <Textarea
-                                  value={project.description}
-                                  onChange={(e) => updateProject(project.id, 'description', e.target.value)}
-                                  rows={2}
-                                />
-                              </div>
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium mb-1">Live URL</label>
-                                  <Input
-                                    value={project.liveUrl || ''}
-                                    onChange={(e) => updateProject(project.id, 'liveUrl', e.target.value)}
-                                    placeholder="https://"
-                                  />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Live URL</label>
+                                    <Input
+                                      value={project.liveUrl || ''}
+                                      onChange={(e) =>
+                                        setData({
+                                          ...data,
+                                          projects: data.projects.map(p =>
+                                            p.id === project.id ? { ...p, liveUrl: e.target.value } : p
+                                          )
+                                        })
+                                      }
+                                      placeholder="https://"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">GitHub URL</label>
+                                    <Input
+                                      value={project.githubUrl || ''}
+                                      onChange={(e) =>
+                                        setData({
+                                          ...data,
+                                          projects: data.projects.map(p =>
+                                            p.id === project.id ? { ...p, githubUrl: e.target.value } : p
+                                          )
+                                        })
+                                      }
+                                      placeholder="https://github.com/..."
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <label className="block text-sm font-medium mb-1">GitHub URL</label>
-                                  <Input
-                                    value={project.githubUrl || ''}
-                                    onChange={(e) => updateProject(project.id, 'githubUrl', e.target.value)}
-                                    placeholder="https://github.com/..."
-                                  />
-                                </div>
                               </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => removeProject(project.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => removeProject(project.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </>
-              )}
-            </motion.div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
