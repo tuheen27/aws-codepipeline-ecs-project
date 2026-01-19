@@ -4,6 +4,7 @@ phases:
     commands:
       - echo Logging in to Amazon ECR....
       - aws --version
+      #- $(aws ecr get-login --region ap-south-1 --no-include-email)
       - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 744709874293.dkr.ecr.ap-south-1.amazonaws.com
       - # ECR repository configuration
       - REPOSITORY_URI=744709874293.dkr.ecr.ap-south-1.amazonaws.com/codebulid/ecs
@@ -22,6 +23,7 @@ phases:
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
+      # Give your container name
       - DOCKER_CONTAINER_NAME=codebulid-ecs-container
       - printf '[{"name":"%s","imageUri":"%s"}]' $DOCKER_CONTAINER_NAME $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
       - echo $DOCKER_CONTAINER_NAME
