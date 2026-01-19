@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 git merge dev
 version: 0.2
 phases:
@@ -36,3 +37,5 @@ artifacts:
   files:
     - imagedefinitions.json
     - target/springboot-aws-deploy.jar
+=======
+>>>>>>> dev
